@@ -38,6 +38,11 @@ const silenceSecEl = el("silenceSec");
 const minCharsEl = el("minChars");
 
 /* -------------------- State -------------------- */
+let audioCtx = null;
+let audioDest = null;
+let audioSourceNode = null;
+let audioOnlyStream = null;
+
 let recognition = null;          // Web Speech API (PTT mode)
 let listening = false;
 
@@ -256,14 +261,13 @@ function stopListeningPTT() {
 async function startTabCapture() {
   const key = getKey();
   if (!key) {
-    alert("Add an API key first (stored locally). Tab capture needs STT via API.");
+    alert("Add an API key first. Tab capture needs STT via API.");
     return;
   }
 
-  // Stop PTT if running
   stopListeningPTT();
 
-  // Request tab/window share WITH audio
+  // You typically need video:true to be allowed to share tab audio
   try {
     displayStream = await navigator.mediaDevices.getDisplayMedia({
       video: true,
@@ -273,9 +277,8 @@ async function startTabCapture() {
     return;
   }
 
-  // Some browsers may give video-only unless user checks “Share audio”
-  const hasAudio = displayStream.getAudioTracks().length > 0;
-  if (!hasAudio) {
+  const audioTracks = displayStream.getAudioTracks();
+  if (!audioTracks || audioTracks.length === 0) {
     alert('No audio track detected. Re-share and make sure "Share audio" is enabled.');
     stopTabCapture();
     return;
@@ -284,51 +287,71 @@ async function startTabCapture() {
   isCapturing = true;
   setStatus("Capturing…", true);
 
-  // When user stops sharing, end capture
+  // Stop capture if user stops sharing
   displayStream.getTracks().forEach(t => {
     t.onended = () => stopTabCapture();
   });
 
-  // Record audio chunks
-  const mime = pickAudioMimeType();
+  // ---- KEY FIX: route captured audio through WebAudio and record that ----
   try {
-    mediaRecorder = new MediaRecorder(displayStream, mime ? { mimeType: mime } : undefined);
-  } catch {
-    mediaRecorder = new MediaRecorder(displayStream);
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    // AudioContext may start suspended until a user gesture; this click counts,
+    // but we still resume to be safe.
+    await audioCtx.resume();
+
+    // Use only the audio tracks for the source node
+    audioOnlyStream = new MediaStream(audioTracks);
+
+    audioSourceNode = audioCtx.createMediaStreamSource(audioOnlyStream);
+    audioDest = audioCtx.createMediaStreamDestination();
+    audioSourceNode.connect(audioDest);
+
+  } catch (e) {
+    console.error("AudioContext setup failed:", e);
+    setStatus("Audio setup failed", false);
+    stopTabCapture();
+    return;
   }
 
-  capturedChunks = [];
+  // Record the destination stream (this avoids Recorder start failures)
+  const mime = pickAudioMimeType();
+  try {
+    mediaRecorder = new MediaRecorder(audioDest.stream, mime ? { mimeType: mime } : undefined);
+  } catch (e) {
+    console.error("MediaRecorder create failed:", e);
+    setStatus("Recorder create failed", false);
+    stopTabCapture();
+    return;
+  }
+
   whisperQueue = [];
   whisperBusy = false;
 
   mediaRecorder.ondataavailable = (e) => {
     if (e.data && e.data.size > 0) {
-      // queue blob for transcription
       whisperQueue.push(e.data);
       pumpWhisperQueue();
     }
   };
 
-  mediaRecorder.onstart = () => {
-    // start periodic slicing
-    // Smaller slices = more "live". 1200ms is a good starting point.
-    mediaRecorder.start(1200);
+  mediaRecorder.onerror = (e) => {
+    console.error("MediaRecorder error:", e);
+    setStatus("Recorder error", false);
   };
 
-  mediaRecorder.onerror = () => {
-    setStatus("Recorder error");
-  };
-
-  // Clear transcript for new capture (optional)
-  // renderBigTranscript("");
-
+  // Start ONCE
   try {
-    mediaRecorder.start(1200);
-  } catch {
-    // Some browsers require calling start only once
-    try { mediaRecorder.start(); } catch {}
+    mediaRecorder.start(1200); // chunk length in ms (lower = more live)
+  } catch (e) {
+    console.error("Recorder start failed:", e.name, e.message);
+    setStatus("Recorder start failed", false);
+    stopTabCapture();
+    return;
   }
 }
+
+
 
 function stopTabCapture() {
   isCapturing = false;
@@ -337,17 +360,32 @@ function stopTabCapture() {
     try { mediaRecorder.stop(); } catch {}
   }
 
-  if (displayStream) {
-    displayStream.getTracks().forEach(t => {
-      try { t.stop(); } catch {}
-    });
-  }
-
   mediaRecorder = null;
+
+  if (audioSourceNode) {
+    try { audioSourceNode.disconnect(); } catch {}
+  }
+  audioSourceNode = null;
+
+  if (audioOnlyStream) {
+    audioOnlyStream.getTracks().forEach(t => { try { t.stop(); } catch {} });
+  }
+  audioOnlyStream = null;
+
+  if (audioCtx) {
+    try { audioCtx.close(); } catch {}
+  }
+  audioCtx = null;
+  audioDest = null;
+
+  if (displayStream) {
+    displayStream.getTracks().forEach(t => { try { t.stop(); } catch {} });
+  }
   displayStream = null;
 
   setStatus("Idle");
 }
+
 
 function pickAudioMimeType() {
   // Prefer formats Whisper accepts well. webm/opus is common in Chrome.
@@ -377,10 +415,10 @@ async function pumpWhisperQueue() {
         appendToTranscript(text);
       }
     } catch (e) {
-      // If Whisper fails, show a helpful error once
-      setStatus("STT error (Whisper)", false);
       console.error(e);
+      setStatus(String(e.message || e), false);
     }
+
   }
 
   whisperBusy = false;
@@ -390,31 +428,34 @@ async function transcribeWithWhisper(blob) {
   const key = getKey();
 
   const fd = new FormData();
-  // Whisper endpoint expects "file" and "model"
-  fd.append("model", "gpt-4o-mini-transcribe"); // if your account doesn't have this, switch below
-  fd.append("file", blob, "audio.webm");
 
-  // Optional: language (helps)
+  // Use the most compatible model name
+  fd.append("model", "whisper-1");
+
+  fd.append("file", blob, "audio.webm");
   fd.append("language", "en");
 
-  const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-    method: "POST",
-    headers: {
-      "Authorization": "Bearer " + key
-    },
-    body: fd
-  });
+  let res;
+  try {
+    res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + key },
+      body: fd
+    });
+  } catch (e) {
+    // This is where CORS/network errors show up
+    throw new Error("Network/CORS error: " + (e?.message || e));
+  }
 
   if (!res.ok) {
-    // Fallback model name if needed:
-    // Change model to "whisper-1" if the above fails for you.
-    const err = await res.text();
-    throw new Error(err);
+    const errText = await res.text();
+    throw new Error(`Whisper API error ${res.status}: ${errText}`);
   }
 
   const data = await res.json();
   return data.text || "";
 }
+
 
 /* -------------------- UI visibility / modes -------------------- */
 function applyModeUI() {
