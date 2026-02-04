@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Read-Out Assistant</title>
+    <link rel="stylesheet" href="./style.css" />
+</head>
+
+<body>
+    <div class="wrap">
+        <header>
+            <h1>Read-Out Assistant</h1>
+            <p class="sub">Listens → answers → shows large text to read out loud.</p>
+        </header>
+
+        <section class="card">
+            <div class="row">
+                <label>
+                    Mode
+                    <select id="mode">
+                        <option value="tab">Capture AI audio (share tab/window with audio)</option>
+                        <option value="ptt">Mic + Push-to-talk (Space)</option>
+                    </select>
+                </label>
+
+                <!-- Only relevant in TAB mode -->
+                <button id="startTab" class="btn">Capture AI Audio</button>
+            </div>
+
+            <!-- TAB MODE SETTINGS (only show in tab mode) -->
+            <div id="tabSettings">
+                <div class="row">
+                    <label>
+                        Silence seconds (end of question)
+                        <input id="silenceSec" type="number" min="0.3" max="10" step="0.1" value="1.2" />
+                    </label>
+
+                    <label>
+                        Min chars before answer
+                        <input id="minChars" type="number" min="5" max="500" step="5" value="20" />
+                    </label>
+
+                    <label>
+                        Auto-answer
+                        <select id="autoAnswer">
+                            <option value="on" selected>On</option>
+                            <option value="off">Off</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+
+            <!-- PTT MODE SETTINGS (only show in ptt mode) -->
+            <div id="pttSettings">
+                <div class="row">
+                    <label>
+                        Push-to-talk
+                        <select id="pttToggle">
+                            <option value="on" selected>Enabled</option>
+                            <option value="off">Disabled</option>
+                        </select>
+                    </label>
+
+                    <div class="row status" style="margin:0;">
+                        <span id="pttDot" class="dot"></span>
+                        <span id="pttText">PTT inactive</span>
+                    </div>
+
+                    <button id="pttHelpBtn" class="btn secondary">How it works</button>
+                </div>
+
+                <p class="hint" style="margin-top:6px;">
+                    When Push-to-talk is enabled, hold <b>Space</b> anywhere on the page to listen. Release Space to
+                    stop.
+                </p>
+            </div>
+
+            <div class="row">
+                <label class="grow">
+                    LLM API Key (stored locally)
+                    <input id="apiKey" type="password" placeholder="Paste your key here" />
+                </label>
+                <button id="saveKey" class="btn secondary">Save</button>
+            </div>
+
+            <div class="row">
+                <label class="grow">
+                    System prompt
+                    <input id="systemPrompt" type="text"
+                        value="Answer naturally and clearly in a human way. Make it easy to read out loud." />
+                </label>
+            </div>
+
+            <div class="row status">
+                <span id="statusDot" class="dot"></span>
+                <span id="statusText">Idle</span>
+            </div>
+
+            <!-- BIG LIVE TRANSCRIPT (what you read from) -->
+            <div class="row">
+                <div class="grow">
+                    <div
+                        style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:8px;">
+                        <div style="color: var(--muted); font-size:13px;">Big live transcript</div>
+                        <div style="display:flex; gap:8px;">
+                            <button id="transcriptBigger" class="btn small">A+</button>
+                            <button id="transcriptSmaller" class="btn small">A-</button>
+                        </div>
+                    </div>
+
+                    <div id="transcriptBig" class="output" contenteditable="false" spellcheck="false"
+                        style="min-height:140px;">
+                        Transcript will appear here…
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hidden small textarea (still useful for debug/copy) -->
+            <div class="row" style="display:none;">
+                <label class="grow">
+                    Raw transcript (debug)
+                    <textarea id="transcript" rows="3"></textarea>
+                </label>
+            </div>
+
+            <div class="row">
+                <button id="clearBtn" class="btn secondary">Clear</button>
+            </div>
+        </section>
+
+        <section class="teleprompter">
+            <div class="teleHeader">
+                <h2>Big Read-Out Text</h2>
+                <div class="teleControls">
+                    <button id="bigger" class="btn small">A+</button>
+                    <button id="smaller" class="btn small">A-</button>
+                </div>
+            </div>
+
+            <div id="output" class="output" contenteditable="true">
+                Your answer will appear here…
+            </div>
+        </section>
+
+        <footer>
+            <p class="hint" id="tabHint">
+                Tip: For “Capture AI audio”, share the tab/window where the other AI speaks and enable “Share audio”.
+            </p>
+        </footer>
+    </div>
+
+    <script src="./app.js"></script>
+</body>
+
+</html>

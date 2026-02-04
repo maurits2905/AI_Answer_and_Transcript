@@ -1,0 +1,157 @@
+:root {
+    --bg: #0b0f17;
+    --card: #121a2a;
+    --text: #e7eefc;
+    --muted: #9fb0d0;
+    --btn: #1d2a44;
+    --btn2: #1a2337;
+    --accent: #6ea8ff;
+}
+
+* {
+    box-sizing: border-box
+}
+
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+    background: linear-gradient(180deg, #070a11, #0b0f17);
+    color: var(--text);
+}
+
+.wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px
+}
+
+header h1 {
+    margin: 0 0 6px 0;
+    font-size: 28px
+}
+
+.sub {
+    margin: 0 0 18px 0;
+    color: var(--muted)
+}
+
+.card {
+    background: rgba(18, 26, 42, .9);
+    border: 1px solid rgba(255, 255, 255, .06);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .25);
+}
+
+.row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    margin: 10px 0;
+    flex-wrap: wrap
+}
+
+label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--muted)
+}
+
+input,
+select,
+textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, .08);
+    background: #0d1424;
+    color: var(--text);
+    outline: none;
+}
+
+textarea {
+    resize: vertical;
+    min-height: 70px
+}
+
+.grow {
+    flex: 1
+}
+
+.btn {
+    border: 1px solid rgba(255, 255, 255, .08);
+    background: var(--btn);
+    color: var(--text);
+    padding: 10px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.btn:hover {
+    border-color: rgba(255, 255, 255, .16)
+}
+
+.btn.primary {
+    background: #1b3a70;
+    border-color: rgba(110, 168, 255, .35)
+}
+
+.btn.secondary {
+    background: var(--btn2)
+}
+
+.btn.small {
+    padding: 6px 10px;
+    border-radius: 10px
+}
+
+.status {
+    align-items: center
+}
+
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #444;
+    display: inline-block
+}
+
+.teleprompter {
+    margin-top: 18px;
+    background: rgba(18, 26, 42, .75);
+    border: 1px solid rgba(255, 255, 255, .06);
+    border-radius: 14px;
+    padding: 16px;
+}
+
+.teleHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center
+}
+
+.teleHeader h2 {
+    margin: 0;
+    font-size: 16px;
+    color: var(--muted)
+}
+
+.output {
+    margin-top: 12px;
+    padding: 18px;
+    border-radius: 12px;
+    background: #070b14;
+    border: 1px solid rgba(255, 255, 255, .08);
+    font-size: 34px;
+    line-height: 1.25;
+    min-height: 220px;
+}
+
+.hint {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 14px
+}
